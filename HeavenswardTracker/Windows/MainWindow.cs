@@ -12,9 +12,15 @@ public sealed class MainWindow : Window, IDisposable
     private readonly TsukimichiIpc tsukimichi;
     private readonly IDataManager data;
     private IReadOnlyList<QuestEntry> quests = Array.Empty<QuestEntry>();
+    private QuestEntry[] mainScenarioQuests = Array.Empty<QuestEntry>();
+    private QuestEntry[] blueQuests = Array.Empty<QuestEntry>();
+    private QuestEntry[] yellowQuests = Array.Empty<QuestEntry>();
+    private int completedCount;
+    private int mainScenarioCompleted;
+    private int blueCompleted;
+    private int yellowCompleted;
     private Task<IReadOnlyList<QuestEntry>>? catalogTask;
     private string? catalogError;
-    private int tab;
 
     public MainWindow(TsukimichiIpc tsukimichi, IDataManager data) : base("Heavensward · Путеводитель")
     {
@@ -36,6 +42,7 @@ public sealed class MainWindow : Window, IDisposable
             {
                 quests = completedTask.Result;
                 tsukimichi.SetQuestIds(quests.Select(quest => quest.Id));
+                CacheQuestGroups();
             }
         }
 
@@ -46,7 +53,10 @@ public sealed class MainWindow : Window, IDisposable
             if (quests.Count == 0)
                 catalogTask = Task.Run(() => HeavenswardCatalog.Load(data));
             else
+            {
                 tsukimichi.RefreshNow();
+                UpdateProgressCounts();
+            }
         }
 
         if (loading)
@@ -69,44 +79,38 @@ public sealed class MainWindow : Window, IDisposable
 
         if (!tsukimichi.Ready)
         {
-            ImGui.TextWrapped("Для работы Heavensward Tracker установите и запустите Tsukimichi. Дождитесь, пока он загрузит данные персонажа, затем нажмите «Обновить прогресс».");
+            ImGui.TextWrapped("Tsukimichi ещё загружает персонажа. Когда он будет готов, нажмите «Обновить прогресс».");
             return;
         }
 
-        var completed = quests.Count(IsComplete);
-        ImGui.TextWrapped("Heavensward · патчи 3.0–3.5");
-        ImGui.Text($"Задания: {completed} / {quests.Count}");
-        ImGui.ProgressBar(quests.Count == 0 ? 0 : (float)completed / quests.Count, new System.Numerics.Vector2(-1, 0));
-        DrawAchievement("Основной сюжет пройден", quests.Where(q => q.Category == QuestCategory.MainScenario));
-        DrawAchievement("Синие задания пройдены", quests.Where(q => q.Category == QuestCategory.Blue));
-        DrawAchievement("Жёлтые задания пройдены", quests.Where(q => q.Category == QuestCategory.Yellow));
+        ImGui.Text($"Задания: {completedCount} / {quests.Count}");
+        ImGui.ProgressBar(quests.Count == 0 ? 0 : (float)completedCount / quests.Count, new System.Numerics.Vector2(-1, 0));
+        DrawAchievement("Основной сюжет пройден", mainScenarioQuests, mainScenarioCompleted);
+        DrawAchievement("Синие задания пройдены", blueQuests, blueCompleted);
+        DrawAchievement("Жёлтые задания пройдены", yellowQuests, yellowCompleted);
         if (ImGui.BeginTabBar("QuestCategories"))
         {
-            DrawTab("Основной сюжет", QuestCategory.MainScenario, 0);
-            DrawTab("Синие задания", QuestCategory.Blue, 1);
-            DrawTab("Жёлтые задания", QuestCategory.Yellow, 2);
+            DrawTab("Основной сюжет", mainScenarioQuests, mainScenarioCompleted, 0);
+            DrawTab("Синие задания", blueQuests, blueCompleted, 1);
+            DrawTab("Жёлтые задания", yellowQuests, yellowCompleted, 2);
             ImGui.EndTabBar();
         }
-        if (quests.Count > 0 && completed == quests.Count)
+        if (completedCount == quests.Count)
             ImGui.TextColored(new System.Numerics.Vector4(1f, .82f, .25f, 1f), "★ Достижение: «Heavensward пройден»");
     }
 
-    private void DrawAchievement(string title, IEnumerable<QuestEntry> categoryQuests)
+    private void DrawAchievement(string title, QuestEntry[] categoryQuests, int completed)
     {
-        var list = categoryQuests.ToArray();
-        if (list.Length > 0 && list.All(IsComplete))
+        if (categoryQuests.Length > 0 && completed == categoryQuests.Length)
             ImGui.TextColored(new System.Numerics.Vector4(1f, .82f, .25f, 1f), $"★ {title}");
     }
 
-    private void DrawTab(string label, QuestCategory category, int index)
+    private void DrawTab(string label, QuestEntry[] entries, int done, int index)
     {
         if (!ImGui.BeginTabItem(label)) return;
-        tab = index;
-        var entries = quests.Where(q => q.Category == category).ToArray();
-        var done = entries.Count(IsComplete);
         ImGui.Text($"Выполнено: {done} / {entries.Length}");
         ImGui.ProgressBar(entries.Length == 0 ? 0 : (float)done / entries.Length, new System.Numerics.Vector2(-1, 0));
-        ImGui.BeginChild($"quests-{tab}", new System.Numerics.Vector2(0, 0), true);
+        ImGui.BeginChild($"quests-{index}", new System.Numerics.Vector2(0, 0), true);
         foreach (var quest in entries)
         {
             var check = IsComplete(quest);
@@ -115,14 +119,28 @@ public sealed class MainWindow : Window, IDisposable
             ImGui.EndDisabled();
             ImGui.SameLine();
             ImGui.Text(quest.Name);
-            ImGui.SameLine();
-            ImGui.TextDisabled(quest.Patch);
         }
         ImGui.EndChild();
         ImGui.EndTabItem();
     }
 
     private bool IsComplete(QuestEntry quest) => tsukimichi.IsCompleted(quest.Id);
+
+    private void CacheQuestGroups()
+    {
+        mainScenarioQuests = quests.Where(q => q.Category == QuestCategory.MainScenario).ToArray();
+        blueQuests = quests.Where(q => q.Category == QuestCategory.Blue).ToArray();
+        yellowQuests = quests.Where(q => q.Category == QuestCategory.Yellow).ToArray();
+        UpdateProgressCounts();
+    }
+
+    private void UpdateProgressCounts()
+    {
+        completedCount = quests.Count(IsComplete);
+        mainScenarioCompleted = mainScenarioQuests.Count(IsComplete);
+        blueCompleted = blueQuests.Count(IsComplete);
+        yellowCompleted = yellowQuests.Count(IsComplete);
+    }
 
     public void Dispose() { }
 }
