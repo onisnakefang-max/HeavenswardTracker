@@ -9,50 +9,70 @@ namespace HeavenswardTracker.Windows;
 
 public sealed class MainWindow : Window, IDisposable
 {
-    private readonly Configuration configuration;
     private readonly TsukimichiIpc tsukimichi;
     private readonly IDataManager data;
     private IReadOnlyList<QuestEntry> quests = Array.Empty<QuestEntry>();
     private Task<IReadOnlyList<QuestEntry>>? catalogTask;
-    private bool catalogLoaded;
+    private string? catalogError;
     private int tab;
 
-    public MainWindow(Configuration configuration, TsukimichiIpc tsukimichi, IDataManager data) : base("Heavensward · Путеводитель")
+    public MainWindow(TsukimichiIpc tsukimichi, IDataManager data) : base("Heavensward · Путеводитель")
     {
-        this.configuration = configuration;
         this.tsukimichi = tsukimichi;
         this.data = data;
         Size = new System.Numerics.Vector2(720, 540);
         SizeCondition = ImGuiCond.FirstUseEver;
+        IsOpen = false;
     }
 
     public override void Draw()
     {
-        if (!catalogLoaded)
+        if (catalogTask is { IsCompleted: true } completedTask)
         {
-            catalogTask ??= Task.Run(() => HeavenswardCatalog.Load(data));
-            if (!catalogTask.IsCompleted)
+            catalogTask = null;
+            if (completedTask.IsFaulted || completedTask.IsCanceled)
+                catalogError = "Не удалось обновить список заданий из игровых данных.";
+            else
             {
-                ImGui.TextWrapped("Загружаю список заданий из игровых данных…");
-                return;
+                quests = completedTask.Result;
+                tsukimichi.SetQuestIds(quests.Select(quest => quest.Id));
             }
+        }
 
-            if (catalogTask.IsFaulted || catalogTask.IsCanceled)
-            {
-                ImGui.TextWrapped("Не удалось прочитать список заданий из игровых данных. Подробности есть в журнале Dalamud.");
-                return;
-            }
+        var loading = catalogTask is { IsCompleted: false };
+        if (ImGui.Button(loading ? "Обновляю…" : "Обновить прогресс") && !loading)
+        {
+            catalogError = null;
+            if (quests.Count == 0)
+                catalogTask = Task.Run(() => HeavenswardCatalog.Load(data));
+            else
+                tsukimichi.RefreshNow();
+        }
 
-            quests = catalogTask.Result;
-            tsukimichi.SetQuestIds(quests.Select(quest => quest.Id));
-            catalogLoaded = true;
+        if (loading)
+        {
+            ImGui.TextWrapped("Список заданий загружается в фоне. Игра остаётся доступной.");
+            return;
+        }
+
+        if (catalogError != null)
+        {
+            ImGui.TextWrapped(catalogError);
+            return;
+        }
+
+        if (quests.Count == 0)
+        {
+            ImGui.TextWrapped("Нажмите «Обновить прогресс», чтобы загрузить список заданий и статусы персонажа.");
+            return;
         }
 
         if (!tsukimichi.Ready)
         {
-            ImGui.TextWrapped("Для работы Heavensward Tracker установите и запустите Tsukimichi. Дождитесь, пока он загрузит данные персонажа.");
+            ImGui.TextWrapped("Для работы Heavensward Tracker установите и запустите Tsukimichi. Дождитесь, пока он загрузит данные персонажа, затем нажмите «Обновить прогресс».");
             return;
         }
+
         var completed = quests.Count(IsComplete);
         ImGui.TextWrapped("Heavensward · патчи 3.0–3.5");
         ImGui.Text($"Задания: {completed} / {quests.Count}");
@@ -66,11 +86,6 @@ public sealed class MainWindow : Window, IDisposable
             DrawTab("Синие задания", QuestCategory.Blue, 1);
             DrawTab("Жёлтые задания", QuestCategory.Yellow, 2);
             ImGui.EndTabBar();
-        }
-        if (quests.Count == 0)
-        {
-            ImGui.Spacing();
-            ImGui.TextWrapped("Каталог заданий пока не добавлен. Окно и отслеживание готовы, но для корректного прогресса нужен каталог с игровыми ID заданий и русскими названиями.");
         }
         if (quests.Count > 0 && completed == quests.Count)
             ImGui.TextColored(new System.Numerics.Vector4(1f, .82f, .25f, 1f), "★ Достижение: «Heavensward пройден»");
