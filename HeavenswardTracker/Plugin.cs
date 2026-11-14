@@ -43,11 +43,9 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (mainWindow == null)
         {
-            var configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-            configuration.Initialize(pluginInterface);
             var ipc = new TsukimichiIpc(pluginInterface);
             tsukimichi = ipc;
-            mainWindow = new MainWindow(configuration, ipc, Data);
+            mainWindow = new MainWindow(ipc, Data);
             windowSystem.AddWindow(mainWindow);
         }
 
