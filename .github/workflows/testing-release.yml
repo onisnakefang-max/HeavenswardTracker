@@ -16,6 +16,11 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Download Dalamud development libraries
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile dalamud.zip
+          Expand-Archive -Force dalamud.zip -DestinationPath "$env:APPDATA/XIVLauncher/addon/Hooks/dev"
       - name: Build plugin
         run: dotnet build HeavenswardTracker/HeavenswardTracker.csproj --configuration Release
       - name: Collect Dalamud package
@@ -36,3 +41,4 @@ jobs:
           } else {
             gh release create testing release/HeavenswardTracker.zip --title "Heavensward Tracker testing" --notes "Automated testing build from main." --prerelease
           }
+
