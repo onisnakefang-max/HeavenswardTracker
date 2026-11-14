@@ -1,0 +1,15 @@
+[
+  {
+    "Author": "onisnakefang-max",
+    "Name": "Heavensward Tracker",
+    "InternalName": "HeavenswardTracker",
+    "AssemblyVersion": "0.1.0.0",
+    "Description": "Трекер заданий Heavensward с игровыми названиями из клиента и статусами Tsukimichi.",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 15,
+    "DownloadLinkInstall": "https://github.com/onisnakefang-max/HeavenswardTracker/releases/download/testing/HeavenswardTracker.zip",
+    "DownloadLinkUpdate": "https://github.com/onisnakefang-max/HeavenswardTracker/releases/download/testing/HeavenswardTracker.zip",
+    "Punchline": "Прогресс по сюжету, синим и жёлтым заданиям Heavensward.",
+    "Tags": ["quest", "tracker", "heavensward"]
+  }
+]
