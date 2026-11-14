@@ -3,6 +3,7 @@ using Dalamud.Bindings.ImGui;
 using HeavenswardTracker.Data;
 using HeavenswardTracker.Models;
 using HeavenswardTracker.Integration;
+using Dalamud.Plugin.Services;
 
 namespace HeavenswardTracker.Windows;
 
@@ -10,20 +11,43 @@ public sealed class MainWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
     private readonly TsukimichiIpc tsukimichi;
-    private readonly IReadOnlyList<QuestEntry> quests;
+    private readonly IDataManager data;
+    private IReadOnlyList<QuestEntry> quests = Array.Empty<QuestEntry>();
+    private Task<IReadOnlyList<QuestEntry>>? catalogTask;
+    private bool catalogLoaded;
     private int tab;
 
-    public MainWindow(Configuration configuration, TsukimichiIpc tsukimichi, IReadOnlyList<QuestEntry> quests) : base("Heavensward · Путеводитель")
+    public MainWindow(Configuration configuration, TsukimichiIpc tsukimichi, IDataManager data) : base("Heavensward · Путеводитель")
     {
         this.configuration = configuration;
         this.tsukimichi = tsukimichi;
-        this.quests = quests;
+        this.data = data;
         Size = new System.Numerics.Vector2(720, 540);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
     public override void Draw()
     {
+        if (!catalogLoaded)
+        {
+            catalogTask ??= Task.Run(() => HeavenswardCatalog.Load(data));
+            if (!catalogTask.IsCompleted)
+            {
+                ImGui.TextWrapped("Загружаю список заданий из игровых данных…");
+                return;
+            }
+
+            if (catalogTask.IsFaulted || catalogTask.IsCanceled)
+            {
+                ImGui.TextWrapped("Не удалось прочитать список заданий из игровых данных. Подробности есть в журнале Dalamud.");
+                return;
+            }
+
+            quests = catalogTask.Result;
+            tsukimichi.SetQuestIds(quests.Select(quest => quest.Id));
+            catalogLoaded = true;
+        }
+
         if (!tsukimichi.Ready)
         {
             ImGui.TextWrapped("Для работы Heavensward Tracker установите и запустите Tsukimichi. Дождитесь, пока он загрузит данные персонажа.");
