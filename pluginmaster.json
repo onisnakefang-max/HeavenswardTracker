@@ -3,7 +3,7 @@
     "Author": "onisnakefang-max",
     "Name": "Heavensward Tracker",
     "InternalName": "HeavenswardTracker",
-    "AssemblyVersion": "0.1.2.0",
+    "AssemblyVersion": "0.1.3.0",
     "Description": "Трекер заданий Heavensward с игровыми названиями из клиента и статусами Tsukimichi.",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
