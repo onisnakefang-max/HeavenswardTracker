@@ -12,8 +12,11 @@ public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/hwtracker";
     private readonly WindowSystem windowSystem = new("HeavenswardTracker");
-    private readonly MainWindow mainWindow;
-    private readonly TsukimichiIpc tsukimichi;
+    private readonly Action openMainUi;
+    private readonly Action openConfigUi;
+    private readonly IDalamudPluginInterface pluginInterface;
+    private MainWindow? mainWindow;
+    private TsukimichiIpc? tsukimichi;
 
     [PluginService] internal static ICommandManager Commands { get; private set; } = null!;
     [PluginService] internal static IDataManager Data { get; private set; } = null!;
@@ -23,28 +26,42 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
+        this.pluginInterface = pluginInterface;
         pluginInterface.Create<Plugin>();
-        var configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        configuration.Initialize(pluginInterface);
-        tsukimichi = new TsukimichiIpc(pluginInterface);
-        mainWindow = new MainWindow(configuration, tsukimichi, Data);
-        windowSystem.AddWindow(mainWindow);
-        Commands.AddHandler(CommandName, new CommandInfo((_, _) => mainWindow.IsOpen = true)
+        openMainUi = () => OpenTracker();
+        openConfigUi = () => OpenTracker();
+        Commands.AddHandler(CommandName, new CommandInfo((_, _) => OpenTracker())
         {
             HelpMessage = "Открыть список заданий Heavensward",
         });
         pluginInterface.UiBuilder.Draw += windowSystem.Draw;
-        pluginInterface.UiBuilder.OpenMainUi += Toggle;
-        pluginInterface.UiBuilder.OpenConfigUi += Toggle;
+        pluginInterface.UiBuilder.OpenMainUi += openMainUi;
+        pluginInterface.UiBuilder.OpenConfigUi += openConfigUi;
     }
 
-    private void Toggle() => mainWindow.IsOpen = !mainWindow.IsOpen;
+    private void OpenTracker()
+    {
+        if (mainWindow == null)
+        {
+            var configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            configuration.Initialize(pluginInterface);
+            var ipc = new TsukimichiIpc(pluginInterface);
+            tsukimichi = ipc;
+            mainWindow = new MainWindow(configuration, ipc, Data);
+            windowSystem.AddWindow(mainWindow);
+        }
+
+        mainWindow.IsOpen = true;
+    }
 
     public void Dispose()
     {
         Commands.RemoveHandler(CommandName);
-        tsukimichi.Dispose();
-        mainWindow.Dispose();
+        pluginInterface.UiBuilder.OpenMainUi -= openMainUi;
+        pluginInterface.UiBuilder.OpenConfigUi -= openConfigUi;
+        pluginInterface.UiBuilder.Draw -= windowSystem.Draw;
+        tsukimichi?.Dispose();
+        mainWindow?.Dispose();
         windowSystem.RemoveAllWindows();
     }
 }
