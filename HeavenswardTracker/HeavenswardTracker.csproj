@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <Version>0.1.1.0</Version>
+    <Version>0.1.2.0</Version>
     <AssemblyName>HeavenswardTracker</AssemblyName>
     <RootNamespace>HeavenswardTracker</RootNamespace>
     <DalamudApiLevel>15</DalamudApiLevel>
@@ -9,4 +9,3 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 </Project>
-
