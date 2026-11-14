@@ -4,7 +4,6 @@
   "Punchline": "Локальный прогресс по заданиям Heavensward.",
   "Description": "Отслеживание заданий Heavensward и внутренних достижений.",
   "InternalName": "HeavenswardTracker",
-  "AssemblyVersion": "0.1.1.0",
+  "AssemblyVersion": "0.1.2.0",
   "DalamudApiLevel": 15
 }
-
