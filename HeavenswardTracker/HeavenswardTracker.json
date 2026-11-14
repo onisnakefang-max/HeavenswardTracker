@@ -1,0 +1,9 @@
+{
+  "Author": "Local",
+  "Name": "Heavensward Tracker",
+  "Punchline": "Локальный прогресс по заданиям Heavensward.",
+  "Description": "Отслеживание заданий Heavensward и внутренних достижений.",
+  "InternalName": "HeavenswardTracker",
+  "AssemblyVersion": "0.1.0.0",
+  "DalamudApiLevel": 15
+}
