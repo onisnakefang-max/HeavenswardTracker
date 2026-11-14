@@ -1,0 +1,38 @@
+name: Build testing plugin
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build plugin
+        run: dotnet build HeavenswardTracker/HeavenswardTracker.csproj --configuration Release
+      - name: Collect Dalamud package
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem -Path HeavenswardTracker/bin -Filter *.zip -Recurse | Select-Object -First 1
+          if ($null -eq $package) { throw 'Dalamud SDK did not produce a plugin zip.' }
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item -LiteralPath $package.FullName -Destination release/HeavenswardTracker.zip -Force
+      - name: Publish rolling testing release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          gh release view testing 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload testing release/HeavenswardTracker.zip --clobber
+          } else {
+            gh release create testing release/HeavenswardTracker.zip --title "Heavensward Tracker testing" --notes "Automated testing build from main." --prerelease
+          }
