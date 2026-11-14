@@ -5,7 +5,6 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using HeavenswardTracker.Windows;
 using HeavenswardTracker.Integration;
-using HeavenswardTracker.Data;
 
 namespace HeavenswardTracker;
 
@@ -28,8 +27,7 @@ public sealed class Plugin : IDalamudPlugin
         var configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         configuration.Initialize(pluginInterface);
         tsukimichi = new TsukimichiIpc(pluginInterface);
-        var catalog = HeavenswardCatalog.Load(Data);
-        mainWindow = new MainWindow(configuration, tsukimichi, catalog);
+        mainWindow = new MainWindow(configuration, tsukimichi, Data);
         windowSystem.AddWindow(mainWindow);
         Commands.AddHandler(CommandName, new CommandInfo((_, _) => mainWindow.IsOpen = true)
         {
